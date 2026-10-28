@@ -1,0 +1,263 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="https://trmnl.com/css/latest/plugins.css">
+  <script src="https://trmnl.com/js/latest/plugins.js"></script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
+
+  <style>
+    h1 {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 2rem;
+      text-align: left;
+      margin: 0 0 1rem;
+    }
+
+    .headline {
+      margin-bottom: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid #999;
+    }
+
+    .headline h2 {
+      font-family: 'Times New Roman', serif;
+      font-size: 1rem;
+      line-height: 1.15;
+      margin: 0 0 0.15rem;
+    }
+
+    .headline a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .headline a:hover {
+      text-decoration: underline;
+    }
+
+    .headline p {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 0.7rem;
+      line-height: 1.2;
+      margin: 0.15rem 0;
+    }
+
+    .metadata {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 0.55rem;
+      margin-top: 0.15rem;
+    }
+
+    #headlines {
+      font-family: 'Montserrat', sans-serif;
+    }
+
+    .status {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 0.9rem;
+    }
+  .title_bar .image {
+  animation: spin 20s linear infinite;
+  transform-origin: center;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+  </style>
+</head>
+
+<body class="environment trmnl">
+  <div class="screen">
+    <div class="view view--full">
+      <div class="layout">
+        <div class="columns">
+          <div class="column">
+            <div class="markdown">
+
+              <h1>New York Times | Top Stories</h1>
+
+              <div id="headlines">
+                <p class="status">Loading headlines...</p>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="title_bar">
+        <img class="image"
+             src="https://trmnl.com/images/plugins/trmnl--render.svg">
+        <span id="bar" class="title">
+          New York Times Headlines | R. Kiselev
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const apiKey = "2hk0tQBEBKC66J8ujf3i8BCSHCrk2qSWzJ0DR1AzuNAxkx9R";
+
+    const sections = [
+      "home",
+      "business",
+      "food",
+      "nyregion",
+      "politics",
+      "science",
+      "sports",
+      "technology",
+      "us",
+      "world"
+    ];
+
+    let sectionIndex = 0;
+    let currentPage = 0;
+    let stories = [];
+
+    const bar = document.getElementById("bar");
+    const container = document.getElementById("headlines");
+
+    function escapeHTML(value) {
+      return String(value ?? "").replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+      })[char]);
+    }
+
+    async function loadHeadlines() {
+      const section = sections[sectionIndex];
+
+      const apiUrl =
+        `https://api.nytimes.com/svc/topstories/v2/${section}.json?api-key=${encodeURIComponent(apiKey)}`;
+
+      try {
+        container.innerHTML =
+          '<p class="status">Loading headlines...</p>';
+
+        const response = await fetch(apiUrl);
+
+        if (!response.ok) {
+          throw new Error(`NYT API returned HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (!Array.isArray(data.results)) {
+          throw new Error("Invalid NYT API response.");
+        }
+
+        stories = data.results.slice(0, 8);
+        currentPage = 0;
+
+        if (stories.length === 0) {
+          container.textContent = "No headlines available.";
+          updateBar();
+          return;
+        }
+
+        renderHeadlines();
+
+      } catch (error) {
+        console.error("Failed to load NYT headlines:", error);
+
+        container.textContent =
+          "Unable to load headlines. Check your API key and browser console.";
+      }
+    }
+
+    function updateBar() {
+      const section = sections[sectionIndex];
+      const page = stories.length > 4 ? currentPage + 1 : 1;
+      const totalPages = stories.length > 4 ? 2 : 1;
+
+      bar.textContent =
+        `NYT - ${section.toUpperCase()} | R. Kiselev | Page ${page} of ${totalPages}`;
+    }
+
+    function renderHeadlines() {
+      const start = currentPage * 4;
+      const pageStories = stories.slice(start, start + 4);
+
+      const html = pageStories.map((story, index) => {
+        const title = escapeHTML(story.title || "Untitled");
+        const abstract = escapeHTML(story.abstract || "");
+        const storySection = escapeHTML(story.section || "");
+
+        const publishedDate = escapeHTML(
+          story.published_date
+            ? story.published_date.slice(0, 10)
+            : ""
+        );
+
+        let articleUrl = "#";
+
+        try {
+          const parsedUrl = new URL(story.url);
+
+          if (
+            parsedUrl.protocol === "https:" &&
+            parsedUrl.hostname === "www.nytimes.com"
+          ) {
+            articleUrl = parsedUrl.href;
+          }
+        } catch (error) {
+        }
+
+        return `
+          <article class="headline">
+            <h2>
+              <a href="${escapeHTML(articleUrl)}"
+                 target="_blank"
+                 rel="noopener noreferrer">
+                ${start + index + 1}. ${title}
+              </a>
+            </h2>
+
+            <div class="metadata">
+              ${storySection}
+              ${publishedDate ? " | " + publishedDate : ""}
+            </div>
+
+            <p>${abstract}</p>
+          </article>
+        `;
+      }).join("");
+
+      container.innerHTML = html;
+      updateBar();
+    }
+
+    function rotateHeadlines() {
+      if (stories.length > 4 && currentPage === 0) {
+        currentPage = 1;
+        renderHeadlines();
+      } else {
+        sectionIndex = (sectionIndex + 1) % sections.length;
+        currentPage = 0;
+        loadHeadlines();
+      }
+    }
+
+    loadHeadlines();
+
+    setInterval(rotateHeadlines, 20000);
+  </script>
+</body>
+</html>
